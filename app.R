@@ -34,11 +34,13 @@ ui <- fluidPage(
         mainPanel(
           fluidRow(
             textOutput("slopeOut"),
-            textOutput("intOut")
+            textOutput("intOut"),
+            textOutput("cor")
           ),
           plotlyOutput("plotly"),
           fluidRow(
-          tableOutput("table")
+            tableOutput("table")
+          
           )
         )
     )
@@ -100,21 +102,31 @@ server <- function(input, output, session) {
   int = reactive(model()[[1]][1])
   
   output$slopeOut <- renderText({
-    paste0("Linear Model Slope = ",slope())
+    paste0("Linear Model Slope = ",round(slope(),2))
   })
   
   output$intOut <- renderText({
-    paste0("Linear Model Intercept = ",int())
+    paste0("Linear Model Intercept = ",round(int(),2))
+  })
+  
+  output$cor <- renderText({
+    paste0("Correlation = ", round(cor(variable1(),variable2()),2))
   })
   
   data_predict = reactive({
    data() %>% mutate(y_predict = slope()*get(input$variable_choice1)+int()) 
   })
   
+  x_range = reactive(seq(min(variable1()),max(variable1()),length.out=100) %>% as_tibble() )
+  
+  data_predict2 = reactive({
+    x_range() %>% mutate(y_predict = slope()*value+int())
+  })
+  
   output$plotly = renderPlotly(
     plot_ly(data = data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
             type = 'scatter', mode = 'markers') %>%
-      add_trace(data = data_predict(), x = ~get(input$variable_choice1), y = data_predict() %>% select(y_predict), mode = 'lines')
+      add_trace(data = data_predict2(), x = ~value, y = ~y_predict, mode = 'lines', type = 'scatter')
   )
   
   
@@ -123,6 +135,8 @@ server <- function(input, output, session) {
   
   output$table = renderTable(var_data())
   output$table3 = renderTable(data_predict())
+  output$xmin = renderTable(data_predict2())
+  output$xmax = renderText(max(variable1()))
   
 }
 
