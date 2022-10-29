@@ -32,7 +32,14 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-           tableOutput("table")
+          fluidRow(
+            textOutput("slopeOut"),
+            textOutput("intOut")
+          ),
+          plotlyOutput("plotly"),
+          fluidRow(
+          tableOutput("table")
+          )
         )
     )
 )
@@ -85,11 +92,37 @@ server <- function(input, output, session) {
   
   var_data = reactive(bind_cols(variable1(),variable2()))
   
+  model <- reactive({
+    lm(get(input$variable_choice2) ~ get(input$variable_choice1), data = data())
+  })
+  
+  slope = reactive(model()[[1]][2])
+  int = reactive(model()[[1]][1])
+  
+  output$slopeOut <- renderText({
+    paste0("Linear Model Slope = ",slope())
+  })
+  
+  output$intOut <- renderText({
+    paste0("Linear Model Intercept = ",int())
+  })
+  
+  data_predict = reactive({
+   data() %>% mutate(y_predict = slope()*get(input$variable_choice1)+int()) 
+  })
+  
+  output$plotly = renderPlotly(
+    plot_ly(data = data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
+            type = 'scatter', mode = 'markers') %>%
+      add_trace(data = data_predict(), x = ~get(input$variable_choice1), y = data_predict() %>% select(y_predict), mode = 'lines')
+  )
+  
   
   output$table2 = renderTable(as_tibble(names(data_numeric())) %>% 
                                 mutate(index = row_number()))
   
   output$table = renderTable(var_data())
+  output$table3 = renderTable(data_predict())
   
 }
 
