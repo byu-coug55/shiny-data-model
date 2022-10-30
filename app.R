@@ -17,14 +17,12 @@ ui <- fluidPage(
           radioButtons("radio_buttons", "Default Dataset or Imported",
                        choices = c("Default","Imported")),
           fileInput("file", "Import Dataset (csv only)", multiple = F,
-                    accept = c(
-                      "text/csv",
-                      "text/comma-separated-values,text/plain",
-                      ".csv")),
+                    accept = ".csv"),
           selectInput("variable_choice1","Select Variable 1 (x)", choices = c("var1","var2","var3")),
           selectInput("variable_choice2","Select Variable 2 (y)", choices = c("var1","var2","var3")),
+          #selectInput("color_choice","Select A Variable to Add Color", choices = c("N/A","var1","var2"), selected = "N/A"),
           #submitButton(),
-          h5("Variable Options"),
+          h4("Numeric Variable Options"),
           tableOutput("table2")
           
             
@@ -37,7 +35,10 @@ ui <- fluidPage(
             textOutput("intOut"),
             textOutput("cor")
           ),
+          br(),
           plotlyOutput("plotly"),
+          br(),
+          h4("Top 15 Rows of Chosen Variables"),
           fluidRow(
             tableOutput("table")
           
@@ -79,6 +80,8 @@ server <- function(input, output, session) {
   
   variable_options = reactive(as_tibble(names(data_numeric())))
   
+  total_options = reactive(as_tibble(names(data())) %>% add_row(value="N/A"))
+  
   observe({
     updateSelectInput(session, "variable_choice1", choices = variable_options())
   })
@@ -88,7 +91,12 @@ server <- function(input, output, session) {
                       choices = variable_options(), selected = tail(variable_options(),n=1))
   })
   
+  observe({
+    updateSelectInput(session, "color_choice", 
+                      choices = total_options(), selected = "N/A")
+  })
   
+  #color_var = reactive(data() %>% select(input$color_choice))
   variable1 = reactive(data() %>% select(input$variable_choice1))
   variable2 = reactive(data() %>% select(input$variable_choice2))
   
@@ -102,22 +110,22 @@ server <- function(input, output, session) {
   int = reactive(model()[[1]][1])
   
   output$slopeOut <- renderText({
-    paste0("Linear Model Slope = ",round(slope(),2))
+    paste0("Linear Model Slope = ",round(slope(),3))
   })
   
   output$intOut <- renderText({
-    paste0("Linear Model Intercept = ",round(int(),2))
+    paste0("Linear Model Intercept = ",round(int(),3))
   })
   
   output$cor <- renderText({
-    paste0("Correlation = ", round(cor(variable1(),variable2()),2))
+    paste0("Correlation = ", round(cor(variable1(),variable2()),3))
   })
   
   data_predict = reactive({
    data() %>% mutate(y_predict = slope()*get(input$variable_choice1)+int()) 
   })
   
-  x_range = reactive(seq(min(variable1()),max(variable1()),length.out=100) %>% as_tibble() )
+  x_range = reactive(seq(min(variable1(), na.rm=TRUE),max(variable1(), na.rm=TRUE),length.out=100) %>% as_tibble() )
   
   data_predict2 = reactive({
     x_range() %>% mutate(y_predict = slope()*value+int())
@@ -126,14 +134,15 @@ server <- function(input, output, session) {
   output$plotly = renderPlotly(
     plot_ly(data = data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
             type = 'scatter', mode = 'markers') %>%
-      add_trace(data = data_predict2(), x = ~value, y = ~y_predict, mode = 'lines', type = 'scatter')
+      add_trace(data = data_predict2(), x = ~value, y = ~y_predict, mode = 'lines', type = 'scatter') %>%
+      layout(title = 'Variable Correlation', xaxis = list(title = input$variable_choice1), 
+             yaxis = list(title = input$variable_choice2))
   )
   
   
-  output$table2 = renderTable(as_tibble(names(data_numeric())) %>% 
-                                mutate(index = row_number()))
+  output$table2 = renderTable(as_tibble(names(data_numeric())) )
   
-  output$table = renderTable(var_data())
+  output$table = renderTable(head(var_data(),n=15))
   output$table3 = renderTable(data_predict())
   output$xmin = renderTable(data_predict2())
   output$xmax = renderText(max(variable1()))
