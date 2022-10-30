@@ -30,12 +30,17 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
+          h4("Correlation Coefficients"),
           fluidRow(
-            textOutput("slopeOut"),
-            textOutput("intOut"),
-            textOutput("cor")
+            column(5,
+              textOutput("slopeOut"),
+              textOutput("intOut")),
+            column(5,
+              textOutput("cor"),
+              textOutput("pval"))
           ),
           br(),
+          h4("Plot"),
           plotlyOutput("plotly"),
           br(),
           h4("Top 15 Rows of Chosen Variables"),
@@ -97,8 +102,8 @@ server <- function(input, output, session) {
   })
   
   #color_var = reactive(data() %>% select(input$color_choice))
-  variable1 = reactive(data() %>% select(input$variable_choice1))
-  variable2 = reactive(data() %>% select(input$variable_choice2))
+  variable1 = reactive(data() %>% select(input$variable_choice1) )
+  variable2 = reactive(data() %>% select(input$variable_choice2) )
   
   var_data = reactive(bind_cols(variable1(),variable2()))
   
@@ -118,7 +123,13 @@ server <- function(input, output, session) {
   })
   
   output$cor <- renderText({
-    paste0("Correlation = ", round(cor(variable1(),variable2()),3))
+    paste0("Correlation = ", round(cor(variable1(),variable2(), use = "complete.obs"),3))
+  })
+  
+  cor_test = reactive(cor.test(as_vector(variable1()),as_vector(variable2()),method = "pearson"))
+  
+  output$pval = renderText({
+    paste0("Correlation p-value = ",round(cor_test()[[3]],4))
   })
   
   data_predict = reactive({
