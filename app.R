@@ -1,6 +1,8 @@
 library(shiny)
 library(plotly)
 library(tidyverse)
+library(vtable)
+library(lolcat)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -14,10 +16,10 @@ ui <- fluidPage(
           selectInput("default_data", "Select a default Dataset",
                       choices = c("MT_Cars","Diamonds", 
                                   "Pressure")),
-          radioButtons("radio_buttons", "Default Dataset or Imported",
-                       choices = c("Default","Imported")),
           fileInput("file", "Import Dataset (csv only)", multiple = F,
                     accept = ".csv"),
+          radioButtons("radio_buttons", "Default Dataset or Imported",
+                       choices = c("Default","Imported")),
           selectInput("variable_choice1","Select Variable 1 (x)", choices = c("var1","var2","var3")),
           selectInput("variable_choice2","Select Variable 2 (y)", choices = c("var1","var2","var3")),
           #selectInput("color_choice","Select A Variable to Add Color", choices = c("N/A","var1","var2"), selected = "N/A"),
@@ -30,23 +32,32 @@ ui <- fluidPage(
 
         # Show a plot of the generated distribution
         mainPanel(
-          h4("Correlation Coefficients"),
-          fluidRow(
-            column(5,
-              textOutput("slopeOut"),
-              textOutput("intOut")),
-            column(5,
-              textOutput("cor"),
-              textOutput("pval"))
-          ),
-          br(),
-          h4("Plot"),
-          plotlyOutput("plotly"),
-          br(),
-          h4("Top 15 Rows of Chosen Variables"),
-          fluidRow(
-            tableOutput("table")
+          tabsetPanel(
+            tabPanel("Correlation",
+              h4("Correlation Coefficients"),
+              fluidRow(
+                column(5,
+                  textOutput("slopeOut"),
+                  textOutput("intOut")),
+                column(5,
+                  textOutput("cor"),
+                  textOutput("pval"))
+              ),
+              br(),
+              h4("Plot"),
+              plotlyOutput("plotly"),
+              br(),
+              h4("Top 15 Rows of Chosen Variables"),
+              fluidRow(
+                tableOutput("table")
           
+              )),
+            tabPanel("Statistics",
+              h4("Summary Stats"),
+              tableOutput("sum_stat"),
+              h4("Normality Stats"),
+              tableOutput("sum_stat2")
+                     )
           )
         )
     )
@@ -154,9 +165,8 @@ server <- function(input, output, session) {
   output$table2 = renderTable(as_tibble(names(data_numeric())) )
   
   output$table = renderTable(head(var_data(),n=15))
-  output$table3 = renderTable(data_predict())
-  output$xmin = renderTable(data_predict2())
-  output$xmax = renderText(max(variable1()))
+  output$sum_stat = renderTable(st(var_data(),out = "return"))
+  output$sum_stat2 = renderTable(summary.continuous(var_data()))
   
 }
 
