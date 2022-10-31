@@ -57,8 +57,8 @@ ui <- fluidPage(
               tableOutput("sum_stat"),
               h4("Normality Stats"),
               tableOutput("sum_stat2"),
-              column(6,plotlyOutput("histogram1")),
-              column(6,plotlyOutput("histogram2"))
+              column(6,plotlyOutput("combined1")),
+              column(6,plotlyOutput("combined2"))
                      )
           )
         )
@@ -169,10 +169,33 @@ server <- function(input, output, session) {
   output$table = renderTable(head(var_data(),n=15))
   output$sum_stat = renderTable(st(var_data(),out = "return"))
   output$sum_stat2 = renderTable(summary.continuous(var_data()))
-  output$histogram1 = renderPlotly( plot_ly(data = data(), x = ~get(input$variable_choice1), type = "histogram") %>%
+  output$histogram1 = renderPlotly( plot_ly(data = data(), x = ~get(input$variable_choice1), type = "histogram") %>% add_trace(type="box", width = 5, boxmean = T, boxpoints = "all") %>% 
                                       layout(title = 'Variable 1', xaxis = list(title = input$variable_choice1), yaxis = list(title = "Frequency") ))
-  output$histogram2 = renderPlotly( plot_ly(data = data(), x = ~get(input$variable_choice2), type = "histogram") %>%
+  output$histogram2 = renderPlotly( plot_ly(data = data(), x = ~get(input$variable_choice2), type = "histogram") %>% add_trace(type="box", width = 5, boxmean = T, boxpoints = "all") %>%
                                       layout(title = 'Variable 2', xaxis = list(title = input$variable_choice2), yaxis = list(title = "Frequency")))
+  output$combined1 = renderPlotly(
+    subplot(
+      plot_ly(data = data(), x = ~get(input$variable_choice1), type = "histogram", name = "histogram") %>%
+        layout(title = 'Variable 1', xaxis = list(title = input$variable_choice1), yaxis = list(title = "Frequency")),
+      plot_ly(data = data(), x = ~get(input$variable_choice1), type = "box", name = "boxlpot", boxmean = T, boxpoints = "all"),
+      plot_ly(data = data(), x = ~get(input$variable_choice1), type = "violin", name = "violin", side = "negative") %>%
+        layout(title = 'Variable 1', xaxis = list(title = input$variable_choice1)),
+      nrows = 3, heights = c(0.6, 0.2,0.2), widths = c(0.8),
+      shareX = T
+    )
+  )
+  
+  output$combined2 = renderPlotly(
+    subplot(
+      plot_ly(data = data(), x = ~get(input$variable_choice2), type = "histogram", name = "histogram") %>%
+        layout(title = 'Variable 2', xaxis = list(title = input$variable_choice2), yaxis = list(title = "Frequency")),
+      plot_ly(data = data(), x = ~get(input$variable_choice2), type = "box", name = "boxlpot", boxmean = T, boxpoints = "all"),
+      plot_ly(data = data(), x = ~get(input$variable_choice2), type = "violin", name = "violin", side = "negative")%>%
+        layout(title = 'Variable 2', xaxis = list(title = input$variable_choice2)),
+      nrows = 3, heights = c(0.6, 0.2,0.2), widths = c(0.8),
+      shareX = T
+    )
+  )
   
    
 }
