@@ -56,7 +56,9 @@ ui <- fluidPage(
               h4("Summary Stats"),
               tableOutput("sum_stat"),
               h4("Normality Stats"),
-              tableOutput("sum_stat2")
+              tableOutput("sum_stat2"),
+              column(6,plotlyOutput("histogram1")),
+              column(6,plotlyOutput("histogram2"))
                      )
           )
         )
@@ -167,7 +169,12 @@ server <- function(input, output, session) {
   output$table = renderTable(head(var_data(),n=15))
   output$sum_stat = renderTable(st(var_data(),out = "return"))
   output$sum_stat2 = renderTable(summary.continuous(var_data()))
+  output$histogram1 = renderPlotly( plot_ly(data = data(), x = ~get(input$variable_choice1), type = "histogram") %>%
+                                      layout(title = 'Variable 1', xaxis = list(title = input$variable_choice1), yaxis = list(title = "Frequency") ))
+  output$histogram2 = renderPlotly( plot_ly(data = data(), x = ~get(input$variable_choice2), type = "histogram") %>%
+                                      layout(title = 'Variable 2', xaxis = list(title = input$variable_choice2), yaxis = list(title = "Frequency")))
   
+   
 }
 
 # Run the application 
