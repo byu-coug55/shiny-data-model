@@ -105,6 +105,8 @@ server <- function(input, output, session) {
   data = reactive({
     if (input$radio_buttons == "Default"){
       default_data_table()
+    } else if(is.null(input$file)){
+      default_data_table()
     } else {
       imported_data()
     }
