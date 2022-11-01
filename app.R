@@ -8,7 +8,7 @@ library(lolcat)
 ui <- fluidPage(
 
     # Application title
-    titlePanel("Linear Modeling"),
+    titlePanel("Data Modeling"),
 
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
@@ -20,6 +20,8 @@ ui <- fluidPage(
                     accept = ".csv"),
           radioButtons("radio_buttons", "Default Dataset or Imported",
                        choices = c("Default","Imported")),
+          selectInput("model_choice", "Select Model", choices = c("Linear","Second Order Polynomial","Third Order Polynomial",
+                                                                  "Exponential","Logarithmic")),
           selectInput("variable_choice1","Select Variable 1 (x)", choices = c("var1","var2","var3")),
           selectInput("variable_choice2","Select Variable 2 (y)", choices = c("var1","var2","var3")),
           #selectInput("color_choice","Select A Variable to Add Color", choices = c("N/A","var1","var2"), selected = "N/A"),
@@ -34,18 +36,18 @@ ui <- fluidPage(
         mainPanel(
           tabsetPanel(
             tabPanel("Correlation",
+              h4("Plot"),
+              plotlyOutput("plotly"),
+              br(),
               h4("Correlation Coefficients"),
               fluidRow(
                 column(5,
-                  textOutput("slopeOut"),
-                  textOutput("intOut")),
+                       verbatimTextOutput("slopeOut"),
+                       textOutput("intOut")),
                 column(5,
-                  textOutput("cor"),
-                  textOutput("pval"))
+                       textOutput("cor"),
+                       textOutput("pval"))
               ),
-              br(),
-              h4("Plot"),
-              plotlyOutput("plotly"),
               br(),
               h4("Top 15 Rows of Chosen Variables"),
               fluidRow(
@@ -121,14 +123,26 @@ server <- function(input, output, session) {
   var_data = reactive(bind_cols(variable1(),variable2()))
   
   model <- reactive({
-    lm(get(input$variable_choice2) ~ get(input$variable_choice1), data = data())
+    if (input$model_choice == "Linear"){
+      lm(get(input$variable_choice2) ~ get(input$variable_choice1), data = data())
+    } else if (input$model_choice == "Second Order Polynomial"){
+      lm(get(input$variable_choice2) ~ poly(get(input$variable_choice1),2), data = data())
+    } else if (input$model_choice == "Third Order Polynomial"){
+      lm(get(input$variable_choice2) ~ poly(get(input$variable_choice1),3), data = data())
+    } else if (input$model_choice == "Exponential"){
+      lm(log(get(input$variable_choice2)) ~ get(input$variable_choice1), data = data())
+    } else if (input$model_choice == "Logarithmic"){
+      lm(get(input$variable_choice2) ~ log(get(input$variable_choice1)), data = data())
+    } else {
+      NULL
+    }
   })
   
-  slope = reactive(model()[[1]][2])
+  coefficients1 = reactive(round(model()[[1]],2)) %>% as_tibble() %>% t()
   int = reactive(model()[[1]][1])
   
-  output$slopeOut <- renderText({
-    paste0("Linear Model Slope = ",round(slope(),3))
+  output$slopeOut <- renderPrint({
+    coefficients1()
   })
   
   output$intOut <- renderText({
@@ -151,8 +165,12 @@ server <- function(input, output, session) {
   
   x_range = reactive(seq(min(variable1(), na.rm=TRUE),max(variable1(), na.rm=TRUE),length.out=100) %>% as_tibble() )
   
+  name = reactive(input$variable_choice1)
+  
+  x_range2 = reactive( x_range() %>% mutate(!!name() := value))
+  
   data_predict2 = reactive({
-    x_range() %>% mutate(y_predict = slope()*value+int())
+    x_range2() %>% mutate(y_predict = predict(model(), newdata = x_range2()[2]))
   })
   
   output$plotly = renderPlotly(
@@ -169,10 +187,6 @@ server <- function(input, output, session) {
   output$table = renderTable(head(var_data(),n=15))
   output$sum_stat = renderTable(st(var_data(),out = "return"))
   output$sum_stat2 = renderTable(summary.continuous(var_data()))
-  output$histogram1 = renderPlotly( plot_ly(data = data(), x = ~get(input$variable_choice1), type = "histogram") %>% add_trace(type="box", width = 5, boxmean = T, boxpoints = "all") %>% 
-                                      layout(title = 'Variable 1', xaxis = list(title = input$variable_choice1), yaxis = list(title = "Frequency") ))
-  output$histogram2 = renderPlotly( plot_ly(data = data(), x = ~get(input$variable_choice2), type = "histogram") %>% add_trace(type="box", width = 5, boxmean = T, boxpoints = "all") %>%
-                                      layout(title = 'Variable 2', xaxis = list(title = input$variable_choice2), yaxis = list(title = "Frequency")))
   output$combined1 = renderPlotly(
     subplot(
       plot_ly(data = data(), x = ~get(input$variable_choice1), type = "histogram", name = "histogram") %>%
