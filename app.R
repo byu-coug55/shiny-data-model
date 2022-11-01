@@ -180,7 +180,7 @@ server <- function(input, output, session) {
   cor_test = reactive(cor.test(as_vector(variable1()),as_vector(variable2()),method = "pearson"))
   
   output$pval = renderText({
-    paste0("Correlation p-value = ",round(cor_test()[[3]],4))
+    paste0("Correlation p-value = ",round(cor_test()[[3]],5))
   })
   
   output$modelsummary = renderPrint({
