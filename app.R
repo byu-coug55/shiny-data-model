@@ -3,6 +3,7 @@ library(plotly)
 library(tidyverse)
 library(vtable)
 library(lolcat)
+library(shinythemes)
 
 # Define UI for application that draws a histogram
 ui <- fluidPage(
@@ -97,15 +98,26 @@ server <- function(input, output, session) {
   
   imported_data = reactive({
     file <- input$file
-    if (is.null(file))
+    if (is.null(file)){
       return(NULL)
+    } else {
     read.csv(file$datapath)
+    }
   })
+  
+  observeEvent(input$file,
+          if (nrow(imported_data())<10){
+            showNotification("Low row count, please use a dataset with more observations", type = "error", duration = 30)
+          } else {
+            showNotification("Dataset imported", type = "message", duration = 10)
+          }
+            )
   
   data = reactive({
     if (input$radio_buttons == "Default"){
       default_data_table()
     } else if(is.null(input$file)){
+      showNotification("Please import a csv file", duration = 45, closeButton = FALSE, type = "error")
       default_data_table()
     } else {
       imported_data()
