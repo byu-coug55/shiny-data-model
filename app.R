@@ -39,6 +39,7 @@ ui <- fluidPage(
               h4("Plot"),
               plotlyOutput("plotly"),
               br(),
+              br(),
               h4("Model Fit and Correlation"),
               fluidRow(
                 column(5,
@@ -53,19 +54,28 @@ ui <- fluidPage(
                        textOutput("pval"))
               ),
               br(),
+              br(),
               h4("Top 15 Rows of Chosen Variables"),
               fluidRow(
                 tableOutput("table")
           
               )),
-            tabPanel("Statistics",
+            tabPanel("Variable Stats",
               h4("Summary Stats"),
               tableOutput("sum_stat"),
               h4("Normality Stats"),
               tableOutput("sum_stat2"),
               column(6,plotlyOutput("combined1")),
               column(6,plotlyOutput("combined2"))
-                     )
+                     ),
+            tabPanel("Model Info",
+                     h4("Model Summary"),
+                     verbatimTextOutput("modelsummary"),
+                     br(),
+                     br(),
+                     h4("Residual Plot"),
+                     br(),
+                     plotlyOutput("residuals"))
           )
         )
     )
@@ -100,6 +110,7 @@ server <- function(input, output, session) {
     }
   })
   
+  
   data_numeric = reactive(data() %>% dplyr::select(where(is.numeric)))
   
   variable_options = reactive(as_tibble(names(data_numeric())))
@@ -122,21 +133,30 @@ server <- function(input, output, session) {
   
   #color_var = reactive(data() %>% select(input$color_choice))
   variable1 = reactive(data() %>% select(input$variable_choice1) )
+  
   variable2 = reactive(data() %>% select(input$variable_choice2) )
   
-  var_data = reactive(bind_cols(variable1(),variable2()))
+  var_data_int = reactive(bind_cols(variable1(),variable2()))
+  
+  var_data = reactive({
+    if (input$model_choice == "Logarithmic"){
+      var_data_int() %>% filter(get(input$variable_choice1)>0)
+    } else {
+      var_data_int()
+    }
+  })
   
   model <- reactive({
     if (input$model_choice == "Linear"){
-      lm(get(input$variable_choice2) ~ get(input$variable_choice1), data = data())
+      lm(get(input$variable_choice2) ~ get(input$variable_choice1), data = var_data())
     } else if (input$model_choice == "Second Order Polynomial"){
-      lm(get(input$variable_choice2) ~ poly(get(input$variable_choice1),2), data = data())
+      lm(get(input$variable_choice2) ~ poly(get(input$variable_choice1),2), data = var_data())
     } else if (input$model_choice == "Third Order Polynomial"){
-      lm(get(input$variable_choice2) ~ poly(get(input$variable_choice1),3), data = data())
+      lm(get(input$variable_choice2) ~ poly(get(input$variable_choice1),3), data = var_data())
     } else if (input$model_choice == "Exponential"){
-      lm(log(get(input$variable_choice2)) ~ get(input$variable_choice1), data = data())
+      lm(log(get(input$variable_choice2)) ~ get(input$variable_choice1), data = var_data())
     } else if (input$model_choice == "Logarithmic"){
-      lm(get(input$variable_choice2) ~ log(get(input$variable_choice1)), data = data())
+      lm(get(input$variable_choice2) ~ log(get(input$variable_choice1)), data = var_data())
     } else {
       NULL
     }
@@ -161,6 +181,10 @@ server <- function(input, output, session) {
   
   output$pval = renderText({
     paste0("Correlation p-value = ",round(cor_test()[[3]],4))
+  })
+  
+  output$modelsummary = renderPrint({
+    model_sum()
   })
   
   data_predict = reactive({
@@ -213,6 +237,12 @@ server <- function(input, output, session) {
       nrows = 3, heights = c(0.6, 0.2,0.2), widths = c(0.8),
       shareX = T
     )
+  )
+  
+  residuals_data = reactive(bind_cols(model()[5],model()[2]))
+  
+  output$residuals = renderPlotly(
+    plot_ly(data = residuals_data(), x = ~fitted.values, y = ~residuals, type = "scatter", mode = "markers")
   )
   
    
