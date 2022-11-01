@@ -25,8 +25,9 @@ ui <- fluidPage(
                                                                   "Exponential","Logarithmic")),
           selectInput("variable_choice1","Select Variable 1 (x)", choices = c("var1","var2","var3")),
           selectInput("variable_choice2","Select Variable 2 (y)", choices = c("var1","var2","var3")),
-          #selectInput("color_choice","Select A Variable to Add Color", choices = c("N/A","var1","var2"), selected = "N/A"),
-          #submitButton(),
+          numericInput(inputId = "x_pred", label = "X value for Prediction", min=1, max=100, value=NULL),
+          h4("Predicted Value"),
+          tableOutput("y_pred"),
           h4("Numeric Variable Options"),
           tableOutput("table2")
           
@@ -140,13 +141,19 @@ server <- function(input, output, session) {
                       choices = variable_options(), selected = tail(variable_options(),n=1))
   })
   
-  observe({
-    updateSelectInput(session, "color_choice", 
-                      choices = total_options(), selected = "N/A")
-  })
   
-  #color_var = reactive(data() %>% select(input$color_choice))
   variable1 = reactive(data() %>% select(input$variable_choice1) )
+  
+  min_val = reactive(min(variable1()))
+  
+  max_val = reactive(max(variable1()))
+  
+  observeEvent(input$x_pred, {
+    req(input$x_pred)
+    updateNumericInput(session, "x_pred", 
+                       min= min_val(),
+                       max= max_val())
+  })
   
   variable2 = reactive(data() %>% select(input$variable_choice2) )
   
@@ -159,6 +166,9 @@ server <- function(input, output, session) {
       var_data_int()
     }
   })
+  
+  
+  
   
   model <- reactive({
     if (input$model_choice == "Linear"){
@@ -215,10 +225,25 @@ server <- function(input, output, session) {
     x_range2() %>% mutate(y_predict = predict(model(), newdata = x_range2()[2]))
   })
   
+  x_pred_int = reactive(input$x_pred %>% as_tibble)
+  
+  x_pred = reactive(x_pred_int() %>% mutate(!!name() := value))
+  
+  y_pred = reactive(predict(model(), newdata = x_pred()[2], interval = "confidence") %>% as_tibble())
+  
+  name2 = reactive(input$variable_choice2)
+  
+  y_pred_out = reactive(y_pred() %>% select(fit, lwr_conf_int = lwr, upr_conf_int = upr))
+  
+  data_pred = reactive(bind_cols(x_pred(),y_pred_out()))
+  
+  output$y_pred = renderTable(y_pred_out())
+  
   output$plotly = renderPlotly(
     plot_ly(data = data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
             type = 'scatter', mode = 'markers') %>%
       add_trace(data = data_predict2(), x = ~value, y = ~y_predict, mode = 'lines', type = 'scatter') %>%
+      add_trace(data = data_pred(), x = ~value, y = ~fit, type = "scatter", mode = "marker", marker = list(symbol = "diamond", size = 12)) %>% 
       layout(title = 'Variable Correlation', xaxis = list(title = input$variable_choice1), 
              yaxis = list(title = input$variable_choice2))
   )
