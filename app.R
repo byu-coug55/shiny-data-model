@@ -39,12 +39,16 @@ ui <- fluidPage(
               h4("Plot"),
               plotlyOutput("plotly"),
               br(),
-              h4("Correlation Coefficients"),
+              h4("Model Fit and Correlation"),
               fluidRow(
                 column(5,
-                       verbatimTextOutput("slopeOut"),
-                       textOutput("intOut")),
+                       h5("Model Fit"),
+                       h6("Model Coefficients"),
+                       verbatimTextOutput("coeffOut"),
+                       textOutput("modelSumOut")),
                 column(5,
+                       h5("Variable Correlation"),
+                       br(),
                        textOutput("cor"),
                        textOutput("pval"))
               ),
@@ -138,15 +142,15 @@ server <- function(input, output, session) {
     }
   })
   
-  coefficients1 = reactive(round(model()[[1]],2)) %>% as_tibble() %>% t()
-  int = reactive(model()[[1]][1])
+  coefficients1 = reactive(round(model()[[1]],2) %>% as_tibble() %>% t())
+  model_sum = reactive(summary(model()))
   
-  output$slopeOut <- renderPrint({
+  output$coeffOut <- renderPrint({
     coefficients1()
   })
   
-  output$intOut <- renderText({
-    paste0("Linear Model Intercept = ",round(int(),3))
+  output$modelSumOut <- renderText({
+    paste0("Model R_squared = ",round(model_sum()[[8]],3))
   })
   
   output$cor <- renderText({
