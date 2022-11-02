@@ -29,13 +29,13 @@ and `temperature` and `pressure` can be approximated with a multi-order polynomi
 
 <img width="784" alt="image" src="https://user-images.githubusercontent.com/56312233/199392658-f452b460-f92f-49d3-a2ab-4c56a4122980.png">
 
-Obviously I wanted this web app to be useful for users so I added an import dataset option.
+To enable the analysis of any dataset (smaller than 5 mb) the user can import their own dataset.
 
 Initally there was only going to be a linear model, but having the different model options to choose from made more sense from an exploratory data analysis perspective. So I included linear, second order polynomial, third order polynomial, logarithmic, and exponential models.
 
 The user is able to choose which variables to compare, and choose an x value to predict a y value. To guide the user in analysis, I display the range of x as well as variable options to choose from.
 
-## Results
+## Results - Correlation Tab
 
 Once a user inputs an x value to predict a y value, the main plot updates to show the predicted value:
 
@@ -46,6 +46,41 @@ The sidebar also updates to show the prediction data including the predicted val
 <img width="347" alt="image" src="https://user-images.githubusercontent.com/56312233/199394834-0c3a2422-272b-4531-996a-be1de29e732d.png">
 
 Each plot is made with plotly so it is interactive. You can select specific points to zoom in on, you can hover over points to see the underlying data values, and you can download the plot as a png.
+
+Model coefficients, model r squared value, and variable correlation coefficient and p-value are displayed under the primary scatter plot: 
+
+<img width="596" alt="image" src="https://user-images.githubusercontent.com/56312233/199490277-faff41a9-8aa3-4c49-bcab-c0ba41ff9c0c.png">
+
+Then, to aid the user in verifying they are visualizing the correct data, I display the top 15 rows of the chosen variables.
+
+## Results - Variable Stats Tab
+
+<img width="902" alt="image" src="https://user-images.githubusercontent.com/56312233/199490787-afe8c9a4-d612-4109-bffc-0bdf586bbd11.png">
+
+In analyzing the correlation between two variables, it is helpful to know as much as you can about those variables. This tab is meant to help as a deep dive into the chosen variables. The user is shown some summary statistics (observation count, mean, standard deviation, min, 25 percentile, 75 percentile, and max). The next table shows a few normaility stats including skewness (does the data lean one way) and kurtosis (how peaked or plateau-like is the data). Then I display a combination chart showing a histogram, boxplot, and a violin plot. 
+
+With this chart, if you wanted to focus in on the data closest to the mean, you can double click on the boxplot trace to isolate it, then select the data around the mean like so:
+
+<img width="385" alt="image" src="https://user-images.githubusercontent.com/56312233/199493045-52b811ff-8a36-4cdb-a8b8-58e5bb12a170.png">
+
+## Results - Model Info
+
+<img width="606" alt="image" src="https://user-images.githubusercontent.com/56312233/199493338-0b503b6e-5c97-4c41-ab78-3a865db6556b.png">
+
+In choosing an optimal model, there are multiple considerations to take into account. This tab helps in that task.
+
+### Considerations
+
+ - How is the model comparing x and y values?
+    - This is shown in the Call section
+    - The values in the estimate column are the model coefficients
+ -  Is there a pattern in the residual plot? (Shown below the model summary)
+    - Patterns in the residual plot mean your model is missing something and doesn't fully explain the correlation
+ -  Minimize standard error in the coefficients
+ -  Maximize R-squared and F-statistic
+ -  Minimize p-value (significance level set at 0.05, values below that show significance)
+
+
 
 
 
