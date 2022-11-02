@@ -1,4 +1,4 @@
-# shiny-linearmodel
+# shiny-data-model
 Import any dataset, select any two variables to compare, and develop a predictive model
 
 ## Web App Link
