@@ -146,9 +146,25 @@ server <- function(input, output, session) {
   
   variable1 = reactive(data() %>% select(input$variable_choice1) )
   
-  min_val = reactive(min(variable1()) %>% as_tibble() %>% select(min = value))
+  variable2 = reactive(data() %>% select(input$variable_choice2) )
   
-  max_val = reactive(max(variable1()) %>% as_tibble() %>% select(max = value))
+  var_data_int = reactive(bind_cols(variable1(),variable2()))
+  
+  var_data = reactive({
+    if (input$model_choice == "Logarithmic"){
+      var_data_int() %>% filter(get(input$variable_choice1)>0)
+    } else {
+      var_data_int() %>%
+        filter(!is.na(get(input$variable_choice1))) %>%
+        filter(!is.na(get(input$variable_choice2))) %>%
+        filter(!is.null(get(input$variable_choice1))) %>%
+        filter(!is.null(get(input$variable_choice2))) 
+    }
+  })
+  
+  min_val = reactive(min(var_data()[1]) %>% as_tibble() %>% select(min = value))
+  
+  max_val = reactive(max(var_data()[1]) %>% as_tibble() %>% select(max = value))
   
   range = reactive(bind_cols(min_val(),max_val()))
   
@@ -161,17 +177,7 @@ server <- function(input, output, session) {
                        max= max_val())
   })
   
-  variable2 = reactive(data() %>% select(input$variable_choice2) )
   
-  var_data_int = reactive(bind_cols(variable1(),variable2()))
-  
-  var_data = reactive({
-    if (input$model_choice == "Logarithmic"){
-      var_data_int() %>% filter(get(input$variable_choice1)>0)
-    } else {
-      var_data_int()
-    }
-  })
   
   model <- reactive({
     if (input$model_choice == "Linear"){
@@ -240,9 +246,9 @@ server <- function(input, output, session) {
   
   data_pred = reactive(bind_cols(x_pred(),y_pred_out()))
   
-  min_val_y = reactive(min(variable2()) %>% as_tibble() %>% select(min = value))
+  min_val_y = reactive(min(var_data()[2]) %>% as_tibble() %>% select(min = value))
   
-  max_val_y = reactive(max(variable2()) %>% as_tibble() %>% select(max = value))
+  max_val_y = reactive(max(var_data()[2]) %>% as_tibble() %>% select(max = value))
   
   range_y = reactive(bind_cols(min_val_y(),max_val_y()))
   
@@ -255,7 +261,7 @@ server <- function(input, output, session) {
   })
   
   plotly1 = reactive({
-    plot_ly(data = data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
+    plot_ly(data = var_data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
             type = 'scatter', mode = 'markers') %>%
       add_trace(data = data_predict2(), x = ~value, y = ~y_predict, mode = 'lines', type = 'scatter') %>%
       layout(title = 'Variable Correlation', xaxis = list(title = input$variable_choice1), 
@@ -263,7 +269,7 @@ server <- function(input, output, session) {
   })
   
   plotly2 = reactive({
-    plot_ly(data = data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
+    plot_ly(data = var_data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
             type = 'scatter', mode = 'markers') %>%
       add_trace(data = data_predict2(), x = ~value, y = ~y_predict, mode = 'lines', type = 'scatter') %>%
       add_trace(data = data_pred(), x = ~value, y = ~fit, type = "scatter", mode = "marker", marker = list(symbol = "diamond", size = 12)) %>% 
@@ -288,10 +294,10 @@ server <- function(input, output, session) {
   output$sum_stat2 = renderTable(summary.continuous(var_data()))
   output$combined1 = renderPlotly(
     subplot(
-      plot_ly(data = data(), x = ~get(input$variable_choice1), type = "histogram", name = "histogram") %>%
+      plot_ly(data = var_data(), x = ~get(input$variable_choice1), type = "histogram", name = "histogram") %>%
         layout(title = 'Variable 1', xaxis = list(title = input$variable_choice1), yaxis = list(title = "Frequency")),
-      plot_ly(data = data(), x = ~get(input$variable_choice1), type = "box", name = "boxlpot", boxmean = T, boxpoints = "all"),
-      plot_ly(data = data(), x = ~get(input$variable_choice1), type = "violin", name = "violin", side = "negative") %>%
+      plot_ly(data = var_data(), x = ~get(input$variable_choice1), type = "box", name = "boxlpot", boxmean = T, boxpoints = "all"),
+      plot_ly(data = var_data(), x = ~get(input$variable_choice1), type = "violin", name = "violin", side = "negative") %>%
         layout(title = 'Variable 1', xaxis = list(title = input$variable_choice1)),
       nrows = 3, heights = c(0.6, 0.2,0.2), widths = c(0.8),
       shareX = T
@@ -300,10 +306,10 @@ server <- function(input, output, session) {
   
   output$combined2 = renderPlotly(
     subplot(
-      plot_ly(data = data(), x = ~get(input$variable_choice2), type = "histogram", name = "histogram") %>%
+      plot_ly(data = var_data(), x = ~get(input$variable_choice2), type = "histogram", name = "histogram") %>%
         layout(title = 'Variable 2', xaxis = list(title = input$variable_choice2), yaxis = list(title = "Frequency")),
-      plot_ly(data = data(), x = ~get(input$variable_choice2), type = "box", name = "boxlpot", boxmean = T, boxpoints = "all"),
-      plot_ly(data = data(), x = ~get(input$variable_choice2), type = "violin", name = "violin", side = "negative")%>%
+      plot_ly(data = var_data(), x = ~get(input$variable_choice2), type = "box", name = "boxlpot", boxmean = T, boxpoints = "all"),
+      plot_ly(data = var_data(), x = ~get(input$variable_choice2), type = "violin", name = "violin", side = "negative")%>%
         layout(title = 'Variable 2', xaxis = list(title = input$variable_choice2)),
       nrows = 3, heights = c(0.6, 0.2,0.2), widths = c(0.8),
       shareX = T
