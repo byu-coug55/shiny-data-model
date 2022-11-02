@@ -63,6 +63,8 @@ With this chart, if you wanted to focus in on the data closest to the mean, you 
 
 <img width="385" alt="image" src="https://user-images.githubusercontent.com/56312233/199493045-52b811ff-8a36-4cdb-a8b8-58e5bb12a170.png">
 
+The solid line is the median and the dashed line is the mean.
+
 ## Results - Model Info
 
 <img width="606" alt="image" src="https://user-images.githubusercontent.com/56312233/199493338-0b503b6e-5c97-4c41-ab78-3a865db6556b.png">
