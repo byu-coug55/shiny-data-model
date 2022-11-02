@@ -35,6 +35,171 @@ Initally there was only going to be a linear model, but having the different mod
 
 The user is able to choose which variables to compare, and choose an x value to predict a y value. To guide the user in analysis, I display the range of x as well as variable options to choose from.
 
+## Troubleshooting Issues
+
+The first issue/design question I thought about was what the user saw when first opening the app. The purpose behind the app was to allow a user to upload a dataset to analyze. However, that would mean that would mean that the user would first encounter a blank screen. I wanted to encourage interactivity, so I needed to include a few default datasets. I also wanted these default datasets to fit different models so they could be used as examples.
+
+So I explored differently preloaded datasets contained in base R by running `data()` which loads a table of contents with various datasets. I ended up chosing `mtcars`, `diamonds`, and `pressure`. This following code loads the user's chosen dataset:
+
+```
+default_data_table = reactive({
+    if(input$default_data == "MT_Cars"){
+      as_tibble(mtcars)
+    } else if (input$default_data == "Diamonds"){
+      as_tibble(diamonds %>% filter(cut %in% c("Very Good", "Premium")) %>%
+                  head(n=1000))
+    } else {
+      as_tibble(pressure)
+    }
+  })
+```
+
+Loading the user's imported dataset:
+
+```
+imported_data = reactive({
+    file <- input$file
+    if (is.null(file)){
+      return(NULL)
+    } else {
+    read.csv(file$datapath)
+    }
+  })
+```
+
+If the user loads a dataset with too few values, I send an alert:
+
+```
+observeEvent(input$file,
+          if (nrow(imported_data())<10){
+            showNotification("Low row count, please use a dataset with more observations", type = "error", duration = 30)
+          } else {
+            showNotification("Dataset imported", type = "message", duration = 10)
+          }
+            )
+```
+
+Then to perform analysis on the user's selected dataset (whether imported or default), the user makes a radiobutton selection:
+
+```
+data = reactive({
+    if (input$radio_buttons == "Default"){
+      default_data_table()
+    } else if(is.null(input$file)){
+      showNotification("Please import a csv file", duration = 45, closeButton = FALSE, type = "error")
+      default_data_table()
+    } else {
+      imported_data()
+    }
+  })
+```
+
+If the user selects "Imported" dataset before actually importing anything, the app will send a notification as shown above and continue to use the default dataset.
+
+Once the dataset is chosen, I update the variable dropdown menus to select numeric variables from the dataset:
+
+```
+data_numeric = reactive(data() %>% dplyr::select(where(is.numeric)))
+  
+variable_options = reactive(as_tibble(names(data_numeric())))
+    
+observe({
+    updateSelectInput(session, "variable_choice1", choices = variable_options())
+  })
+  
+observe({
+    updateSelectInput(session, "variable_choice2", 
+                      choices = variable_options(), selected = tail(variable_options(),n=1))
+  })
+```
+
+I then combine the user's selected variables into a dataframe:
+
+```
+variable1 = reactive(data() %>% select(input$variable_choice1) )
+  
+  variable2 = reactive(data() %>% select(input$variable_choice2) )
+  
+  var_data_int = reactive(bind_cols(variable1(),variable2()))
+  
+  var_data = reactive({
+    if (input$model_choice == "Logarithmic"){
+      var_data_int() %>% filter(get(input$variable_choice1)>0)
+    } else {
+      var_data_int() %>%
+        filter(!is.na(get(input$variable_choice1))) %>%
+        filter(!is.na(get(input$variable_choice2))) %>%
+        filter(!is.null(get(input$variable_choice1))) %>%
+        filter(!is.null(get(input$variable_choice2))) 
+    }
+  })
+```
+
+Many analyses don't like N/A or `null` values, so those are filtered out above. If the data model is `logarithmic` then the chosen x variable cannot be negative.
+
+For the model selection, I allow the user to choose from `linear`, `second order polynomial`, `third order polynomial`, `logarithmic`, and `exponential`.
+
+```
+model <- reactive({
+    if (input$model_choice == "Linear"){
+      lm(get(input$variable_choice2) ~ get(input$variable_choice1), data = var_data())
+    } else if (input$model_choice == "Second Order Polynomial"){
+      lm(get(input$variable_choice2) ~ poly(get(input$variable_choice1),2), data = var_data())
+    } else if (input$model_choice == "Third Order Polynomial"){
+      lm(get(input$variable_choice2) ~ poly(get(input$variable_choice1),3), data = var_data())
+    } else if (input$model_choice == "Exponential"){
+      lm(log(get(input$variable_choice2)) ~ get(input$variable_choice1), data = var_data())
+    } else if (input$model_choice == "Logarithmic"){
+      lm(get(input$variable_choice2) ~ log(get(input$variable_choice1)), data = var_data())
+    } else {
+      NULL
+    }
+  })
+```
+
+As part of this app, I wanted the user to be able to put in a value and make a prediction based on the model they chose. However, if the user deletes the value from the numericInput, then the app would throw several errors for the dependent tables and plots. To get around this, I used and if statement conditional on a valid numericInput. This can be done by using `isTruthy()`:
+
+```
+output$y_pred = renderTable({
+    if(!isTruthy(input$x_pred)){
+      return(range_y())
+    } else {
+      return(y_pred_out())
+    }
+  })
+
+output$plotly = renderPlotly({
+    if(!isTruthy(input$x_pred)){
+      return(plotly1())
+    } else {
+      return(plotly2())
+    }
+  })
+```
+
+You'll notice that when the numericInput field is blank, the y prediction table shows only the range of y instead of a prediction. Also the main scatter plot changes when the numericInput is not null.
+
+The last issue I had was creating the combination plots. [Plotly's documentation](https://plotly.com/r/) is pretty extensive, but I found that it was hard to navigate sometimes. However, I was able to find a post that contained info on creating combination plots by using `subplot()`:
+
+```
+output$combined1 = renderPlotly(
+    subplot(
+      plot_ly(data = var_data(), x = ~get(input$variable_choice1), type = "histogram", name = "histogram") %>%
+        layout(title = 'Variable 1', xaxis = list(title = input$variable_choice1), yaxis = list(title = "Frequency")),
+      plot_ly(data = var_data(), x = ~get(input$variable_choice1), type = "box", name = "boxlpot", boxmean = T, boxpoints = "all"),
+      plot_ly(data = var_data(), x = ~get(input$variable_choice1), type = "violin", name = "violin", side = "negative") %>%
+        layout(title = 'Variable 1', xaxis = list(title = input$variable_choice1)),
+      nrows = 3, heights = c(0.6, 0.2,0.2), widths = c(0.8),
+      shareX = T
+    )
+  )
+```
+
+Using the `subplot()` function allowed me to combine a histogram, boxplot, and a violin plot! I think the result is pretty visually appealing! (and at the same time, very information dense!)
+
+<img width="817" alt="image" src="https://user-images.githubusercontent.com/56312233/199598094-680df7ff-7165-4e4a-8011-28b51e70ab3b.png">
+
+
 ## Results - Correlation Tab
 
 Once a user inputs an x value to predict a y value, the main plot updates to show the predicted value:
@@ -83,8 +248,9 @@ In choosing an optimal model, there are multiple considerations to take into acc
  -  Minimize p-value (significance level set at 0.05, values below that show significance)
 
 
+## Conclusion
 
-
+Overall this has been a fun project and definitely my largest so far. Hopefully users get good use out of it. If you have any suggestions or project ideas, send them my way!
 
 
 
