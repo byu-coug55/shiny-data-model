@@ -25,6 +25,8 @@ ui <- fluidPage(
                                                                   "Exponential","Logarithmic")),
           selectInput("variable_choice1","Select Variable 1 (x)", choices = c("var1","var2","var3")),
           selectInput("variable_choice2","Select Variable 2 (y)", choices = c("var1","var2","var3")),
+          h4("Choose a value between the listed min/max"),
+          tableOutput("range"),
           numericInput(inputId = "x_pred", label = "X value for Prediction", min=1, max=100, value=NULL),
           h4("Predicted Value"),
           tableOutput("y_pred"),
@@ -144,9 +146,13 @@ server <- function(input, output, session) {
   
   variable1 = reactive(data() %>% select(input$variable_choice1) )
   
-  min_val = reactive(min(variable1()))
+  min_val = reactive(min(variable1()) %>% as_tibble() %>% select(min = value))
   
-  max_val = reactive(max(variable1()))
+  max_val = reactive(max(variable1()) %>% as_tibble() %>% select(max = value))
+  
+  range = reactive(bind_cols(min_val(),max_val()))
+  
+  output$range = renderTable(range())
   
   observeEvent(input$x_pred, {
     req(input$x_pred)
@@ -166,9 +172,6 @@ server <- function(input, output, session) {
       var_data_int()
     }
   })
-  
-  
-  
   
   model <- reactive({
     if (input$model_choice == "Linear"){
@@ -237,16 +240,45 @@ server <- function(input, output, session) {
   
   data_pred = reactive(bind_cols(x_pred(),y_pred_out()))
   
-  output$y_pred = renderTable(y_pred_out())
+  min_val_y = reactive(min(variable2()) %>% as_tibble() %>% select(min = value))
   
-  output$plotly = renderPlotly(
+  max_val_y = reactive(max(variable2()) %>% as_tibble() %>% select(max = value))
+  
+  range_y = reactive(bind_cols(min_val_y(),max_val_y()))
+  
+  output$y_pred = renderTable({
+    if(!isTruthy(input$x_pred)){
+      return(range_y())
+    } else {
+      return(y_pred_out())
+    }
+  })
+  
+  plotly1 = reactive({
+    plot_ly(data = data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
+            type = 'scatter', mode = 'markers') %>%
+      add_trace(data = data_predict2(), x = ~value, y = ~y_predict, mode = 'lines', type = 'scatter') %>%
+      layout(title = 'Variable Correlation', xaxis = list(title = input$variable_choice1), 
+             yaxis = list(title = input$variable_choice2))
+  })
+  
+  plotly2 = reactive({
     plot_ly(data = data(), x = ~get(input$variable_choice1), y = ~get(input$variable_choice2), 
             type = 'scatter', mode = 'markers') %>%
       add_trace(data = data_predict2(), x = ~value, y = ~y_predict, mode = 'lines', type = 'scatter') %>%
       add_trace(data = data_pred(), x = ~value, y = ~fit, type = "scatter", mode = "marker", marker = list(symbol = "diamond", size = 12)) %>% 
       layout(title = 'Variable Correlation', xaxis = list(title = input$variable_choice1), 
              yaxis = list(title = input$variable_choice2))
-  )
+  })
+  
+  output$plotly = renderPlotly({
+    if(!isTruthy(input$x_pred)){
+      return(plotly1())
+    } else {
+      return(plotly2())
+    }
+  })
+  
   
   
   output$table2 = renderTable(as_tibble(names(data_numeric())) )
